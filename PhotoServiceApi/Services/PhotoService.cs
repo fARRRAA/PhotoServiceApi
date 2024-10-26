@@ -28,6 +28,12 @@ namespace PhotoServiceApi.Services
                 Directory.CreateDirectory(_storagePath);
             }
         }
+
+        public Stream GetPhotoByName(string name)
+        {
+            var filePath = Path.Combine(_storagePath, name);
+            return System.IO.File.Exists(filePath) ? File.OpenRead(filePath) : null;
+        }
         public async Task<Photo> UploadPhoto(IFormFile file)
         {
             var fileName = Path.GetFileName(file.FileName);
@@ -40,7 +46,6 @@ namespace PhotoServiceApi.Services
             var id = $"{Guid.NewGuid()}_{fileName}";
             var photo = new Photo
             {
-                Id = fileName,
                 Name = fileName,
                 Url = $"https://localhost:7270/photos/{fileName}",
                 UploadedAt = DateTime.Now
@@ -51,34 +56,33 @@ namespace PhotoServiceApi.Services
 
         }
 
-        public async Task DeletePhoto(string photoId)
+        public async Task DeletePhoto(string name)
         {
-            var filePath = Path.Combine(_storagePath, photoId);
+            var filePath = Path.Combine(_storagePath, name);
             if (File.Exists(filePath))
             {
                 File.Delete(filePath);
             }
-            var photo = await _context.Photos.FirstOrDefaultAsync(p=>p.Id == photoId);
+            var photo = await _context.Photos.FirstOrDefaultAsync(p=>p.Name == name);
 
             _context.Remove(photo);
             _context.SaveChanges();
         }
 
-        public async Task<Photo> ReplacePhoto(string photoId, IFormFile file)
+        public async Task<Photo> ReplacePhoto(string name, IFormFile file)
         {
-
-            await DeletePhoto(photoId);
             var photo = await UploadPhoto(file);
-            var temp = await _context.Photos.FirstOrDefaultAsync(p => p.Id == photoId);
+            var temp = await _context.Photos.FirstOrDefaultAsync(p => p.Name == name);
+            var id = $"{Guid.NewGuid()}_{photo.Name}";
             temp.Url = photo.Url;
             temp.UploadedAt = DateTime.Now;
             temp.Name=photo.Name;
-            temp.Id = photo.Id;
+            await DeletePhoto(name);
             await _context.SaveChangesAsync();
             return photo;
         }
 
-        public List<Photo> GetPhotos()
+        public List<Photo> ALlFromFolder()
         {
             var photos = new List<Photo>();
             var files = Directory.GetFiles(_storagePath);
@@ -86,11 +90,16 @@ namespace PhotoServiceApi.Services
             foreach (var file in files)
             {
                 var fileName = Path.GetFileName(file);
-                photos.Add(new Photo { Id = fileName, Name = fileName, Url = $"/photos/{fileName}" });
+                photos.Add(new Photo { Name = fileName, Url = $"/photos/{fileName}" });
             }
 
             return photos;
         }
-
+        public  List<Photo> GetPhotos()
+        {
+            var photos =  _context.Photos.ToList();
+            return photos;
+        }
+        
     }
 }

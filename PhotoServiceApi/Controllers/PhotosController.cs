@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using PhotoServiceApi.Interfaces;
+using PhotoServiceApi.Models;
 
 namespace PhotoServiceApi.Controllers
 {
@@ -14,13 +15,19 @@ namespace PhotoServiceApi.Controllers
             _photoService = photoService;
         }
 
-        [HttpGet]
+        [HttpGet("all")]
         public async Task<IActionResult> GetPhotos()
         {
             var photos =  _photoService.GetPhotos();
             return Ok(photos);
         }
+        [HttpGet("photo/{name}")]
+        public async Task<IActionResult> getPhotoByName(string name)
+        {
+           Stream stream = _photoService.GetPhotoByName(name);
+            return File(stream, "image/png");
 
+        }
         [HttpPost("upload")]
         public async Task<IActionResult> UploadPhoto(IFormFile file)
         {
@@ -31,17 +38,23 @@ namespace PhotoServiceApi.Controllers
             return Ok(photo);
         }
 
-        [HttpDelete("delete/{id}")]
-        public async Task<IActionResult> DeletePhoto(string id)
+        [HttpDelete("delete/{name}")]
+        public async Task<IActionResult> DeletePhoto(string name)
         {
-            await _photoService.DeletePhoto(id);
+            await _photoService.DeletePhoto(name);
             return Ok();
         }
-        [HttpPut("update/{id}")]
-        public async Task<IActionResult> UpdatePhoto(string id, IFormFile file)
+        [HttpPut("update/{name}")]
+        public async Task<IActionResult> UpdatePhoto(string name, IFormFile file)
         {
-            await _photoService.ReplacePhoto(id, file);
+            await _photoService.ReplacePhoto(name, file);
             return Ok();
+        }
+        [HttpGet("allFromFolder")]
+        public async Task<IActionResult> AllFromFolder()
+        {
+            var photos = _photoService.ALlFromFolder();
+            return Ok(photos);
         }
     }
 }

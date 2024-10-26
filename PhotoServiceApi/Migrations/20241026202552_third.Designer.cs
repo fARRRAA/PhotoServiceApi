@@ -12,8 +12,8 @@ using PhotoServiceApi.dbContext;
 namespace PhotoServiceApi.Migrations
 {
     [DbContext(typeof(PhotoServiceDb))]
-    [Migration("20241025194941_first")]
-    partial class first
+    [Migration("20241026202552_third")]
+    partial class third
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -27,8 +27,11 @@ namespace PhotoServiceApi.Migrations
 
             modelBuilder.Entity("PhotoServiceApi.Models.Photo", b =>
                 {
-                    b.Property<string>("Id")
-                        .HasColumnType("nvarchar(450)");
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
                     b.Property<string>("Name")
                         .IsRequired()
