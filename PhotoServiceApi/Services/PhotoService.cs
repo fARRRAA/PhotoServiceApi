@@ -34,6 +34,7 @@ namespace PhotoServiceApi.Services
             var filePath = Path.Combine(_storagePath, name);
             return System.IO.File.Exists(filePath) ? File.OpenRead(filePath) : null;
         }
+
         public async Task<Photo> UploadPhoto(IFormFile file)
         {
             var fileName = Path.GetFileName(file.FileName);

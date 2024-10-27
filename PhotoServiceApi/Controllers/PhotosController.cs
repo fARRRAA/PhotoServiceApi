@@ -29,7 +29,7 @@ namespace PhotoServiceApi.Controllers
 
         }
         [HttpPost("upload")]
-        public async Task<IActionResult> UploadPhoto(IFormFile file)
+        public async Task<IActionResult> UploadPhoto([FromForm]IFormFile file)
         {
             if (file == null || file.Length == 0)
                 return BadRequest("No file uploaded.");
