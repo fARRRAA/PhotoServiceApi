@@ -1,11 +1,14 @@
 
 
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Microsoft.IdentityModel.Tokens;
 using PhotoServiceApi.dbContext;
 using PhotoServiceApi.Interfaces;
 using PhotoServiceApi.Models;
 using PhotoServiceApi.Services;
+using System.Text;
 
 namespace PhotoServiceApi
 {
@@ -44,8 +47,45 @@ namespace PhotoServiceApi
 
             builder.Services.AddDbContext<PhotoServiceDb>(options =>
      options.UseSqlServer(builder.Configuration.GetConnectionString("TestDbString")), ServiceLifetime.Scoped);
-            var app = builder.Build();
 
+            builder.Services.AddHttpContextAccessor();
+
+            builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+                .AddJwtBearer(JwtBearerDefaults.AuthenticationScheme, options =>
+                {
+                    options.TokenValidationParameters = new()
+                    {
+
+                        ValidateIssuer = false,
+                        ValidateAudience = false,
+                        ValidateLifetime = true,
+                        ValidateIssuerSigningKey = true,
+                        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["JwtOptions:SecretKey"]))
+                    };
+                    options.Events = new JwtBearerEvents
+                    {
+                        OnMessageReceived = context =>
+                        {
+                            //var authorizationHeader = context.Request.Headers["Authorization"].ToString();
+                            //if (!string.IsNullOrEmpty(authorizationHeader) && authorizationHeader.StartsWith("Bearer "))
+                            //{
+                            //    context.Token = authorizationHeader.Substring("Bearer ".Length).Trim();
+
+
+                            //}
+                            context.Token = context.Request.Cookies["wild-cookies"];
+
+                            return Task.CompletedTask;
+
+                        }
+
+                    };
+
+                });
+
+
+            var app = builder.Build();
+            
             // Configure the HTTP request pipeline.
             if (app.Environment.IsDevelopment())
             {
