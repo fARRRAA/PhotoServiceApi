@@ -17,11 +17,9 @@ namespace PhotoServiceApi
         public static void Main(string[] args)
         {
             var builder = WebApplication.CreateBuilder(args);
-
-            // Add services to the container.
+            
 
             builder.Services.AddControllers();
-            // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen();
 
@@ -66,18 +64,20 @@ namespace PhotoServiceApi
                     {
                         OnMessageReceived = context =>
                         {
-                            //var authorizationHeader = context.Request.Headers["Authorization"].ToString();
-                            //if (!string.IsNullOrEmpty(authorizationHeader) && authorizationHeader.StartsWith("Bearer "))
-                            //{
-                            //    context.Token = authorizationHeader.Substring("Bearer ".Length).Trim();
+                            var authorizationHeader = context.Request.Headers["Authorization"].ToString();
+                            if (!string.IsNullOrEmpty(authorizationHeader) && authorizationHeader.StartsWith("Bearer "))
+                            {
+                                context.Token = authorizationHeader.Substring("Bearer ".Length).Trim();
 
 
-                            //}
-                            context.Token = context.Request.Cookies["wild-cookies"];
+                            }
+                            //context.Token = context.Request.Cookies["wild-cookies"];
 
                             return Task.CompletedTask;
 
+
                         }
+
 
                     };
 

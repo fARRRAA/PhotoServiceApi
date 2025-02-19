@@ -48,13 +48,18 @@ namespace PhotoServiceApi.Services
             var photo = new Photo
             {
                 Name = fileName,
-                Url = $"https://localhost:7270/photos/{fileName}",
+                Url = $"https://localhost:7270/api/Photos/photo/{fileName}",
                 UploadedAt = DateTime.Now
             };
-            await _context.Photos.AddAsync(photo);
-            await _context.SaveChangesAsync();
-            return photo;
+            var all = _context.Photos.ToList();
+            if (!all.Any(x => x.Name == photo.Name))
+            {
+                await _context.Photos.AddAsync(photo);
+                await _context.SaveChangesAsync();
+                return photo;
+            }
 
+            return photo;
         }
 
         public async Task DeletePhoto(string name)
@@ -64,7 +69,7 @@ namespace PhotoServiceApi.Services
             {
                 File.Delete(filePath);
             }
-            var photo = await _context.Photos.FirstOrDefaultAsync(p=>p.Name == name);
+            var photo = await _context.Photos.FirstOrDefaultAsync(p => p.Name == name);
 
             _context.Remove(photo);
             _context.SaveChanges();
@@ -77,7 +82,7 @@ namespace PhotoServiceApi.Services
             var id = $"{Guid.NewGuid()}_{photo.Name}";
             temp.Url = photo.Url;
             temp.UploadedAt = DateTime.Now;
-            temp.Name=photo.Name;
+            temp.Name = photo.Name;
             await DeletePhoto(name);
             await _context.SaveChangesAsync();
             return photo;
@@ -96,11 +101,11 @@ namespace PhotoServiceApi.Services
 
             return photos;
         }
-        public  List<Photo> GetPhotos()
+        public List<Photo> GetPhotos()
         {
-            var photos =  _context.Photos.ToList();
+            var photos = _context.Photos.ToList();
             return photos;
         }
-        
+
     }
 }
