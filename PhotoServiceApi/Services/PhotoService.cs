@@ -8,7 +8,10 @@ using PhotoServiceApi.dbContext;
 using PhotoServiceApi.Interfaces;
 using PhotoServiceApi.Models;
 using System.IO;
-
+using static System.Net.Mime.MediaTypeNames;
+using SixLabors.ImageSharp;
+using SixLabors.ImageSharp.Formats.Webp;
+using Microsoft.AspNetCore.WebUtilities;
 namespace PhotoServiceApi.Services
 {
 
@@ -32,36 +35,109 @@ namespace PhotoServiceApi.Services
         public Stream GetPhotoByName(string name)
         {
             var filePath = Path.Combine(_storagePath, name);
-            return System.IO.File.Exists(filePath) ? File.OpenRead(filePath) : null;
+
+            if (!System.IO.File.Exists(filePath))
+            {
+                return null; // Возвращаем null, если файл не существует
+            }
+
+            return System.IO.File.OpenRead(filePath); // Открываем файл для чтения
         }
 
         public async Task<Photo> UploadPhoto(IFormFile file)
         {
-            var fileName = Path.GetFileName(file.FileName);
-            var filePath = Path.Combine(_storagePath, fileName);
+            // Разрешенные расширения файлов
+            var allowedExtensions = new[] { ".jpg", ".jpeg", ".webp", ".png" };
+            var fileExtension = Path.GetExtension(file.FileName).ToLower();
 
-            using (var stream = new FileStream(filePath, FileMode.Create))
+            // Проверка расширения файла
+            if (!allowedExtensions.Contains(fileExtension))
             {
-                await file.CopyToAsync(stream);
+                throw new ArgumentException($"Недопустимое расширение файла: {fileExtension}");
             }
-            var id = $"{Guid.NewGuid()}_{fileName}";
+
+            // Проверка размера файла
+            if (file.Length > 5 * 1024 * 1024) // 5 MB
+            {
+                throw new ArgumentException("Файл слишком большой.");
+            }
+
+            // Проверка пустого файла
+            if (file.Length == 0)
+            {
+                throw new ArgumentException("Файл пустой.");
+            }
+
+            // Путь к файлу
+            var fileName = Path.GetFileNameWithoutExtension(file.FileName); // Имя без расширения
+            var originalExtension = Path.GetExtension(file.FileName).ToLower();
+            var newFileName = $"{fileName}.webp"; // Новое имя файла с расширением .webp
+            var filePath = Path.Combine(_storagePath, newFileName);
+
+            // Проверка существования директории
+            if (!Directory.Exists(_storagePath))
+            {
+                Directory.CreateDirectory(_storagePath);
+            }
+
+            Console.WriteLine($"Сохраняем файл: {filePath}");
+
+            // Конвертация в .webp, если файл не в формате .webp
+            using (var memoryStream = new MemoryStream())
+            {
+                await file.CopyToAsync(memoryStream); // Копируем содержимое файла в MemoryStream
+                memoryStream.Position = 0; // Сбрасываем позицию потока
+
+                if (originalExtension != ".webp")
+                {
+                    // Конвертируем изображение в .webp
+                    using (var image = await SixLabors.ImageSharp.Image.LoadAsync(memoryStream)) // Используем MemoryStream напрямую
+                    {
+                        using (var webpStream = new FileStream(filePath, FileMode.Create))
+                        {
+                            await image.SaveAsync(webpStream, new WebpEncoder());
+                        }
+                    }
+                }
+                else
+                {
+                    // Если файл уже в формате .webp, просто сохраняем его
+                    using (var fileStream = new FileStream(filePath, FileMode.Create))
+                    {
+                        await memoryStream.CopyToAsync(fileStream);
+                    }
+                }
+            }
+
+            // Проверка успешности сохранения
+            if (File.Exists(filePath))
+            {
+                Console.WriteLine($"Файл успешно сохранен: {filePath}");
+            }
+            else
+            {
+                throw new InvalidOperationException("Не удалось сохранить файл.");
+            }
+
+            // Создание объекта Photo
+            var id = $"{Guid.NewGuid()}_{newFileName}";
             var photo = new Photo
             {
-                Name = fileName,
-                Url = $"https://localhost:7270/api/Photos/photo/{fileName}",
+                Name = newFileName,
+                Url = $"https://localhost:7270/api/Photos/photo/{newFileName}",
                 UploadedAt = DateTime.Now
             };
+
+            // Проверка, что файл еще не существует в базе данных
             var all = _context.Photos.ToList();
             if (!all.Any(x => x.Name == photo.Name))
             {
                 await _context.Photos.AddAsync(photo);
                 await _context.SaveChangesAsync();
-                return photo;
             }
 
             return photo;
         }
-
         public async Task DeletePhoto(string name)
         {
             var filePath = Path.Combine(_storagePath, name);
@@ -77,15 +153,28 @@ namespace PhotoServiceApi.Services
 
         public async Task<Photo> ReplacePhoto(string name, IFormFile file)
         {
-            var photo = await UploadPhoto(file);
-            var temp = await _context.Photos.FirstOrDefaultAsync(p => p.Name == name);
-            var id = $"{Guid.NewGuid()}_{photo.Name}";
-            temp.Url = photo.Url;
-            temp.UploadedAt = DateTime.Now;
-            temp.Name = photo.Name;
-            await DeletePhoto(name);
+            var newPhoto = await UploadPhoto(file);
+
+            if (newPhoto == null)
+            {
+                throw new InvalidOperationException("Не удалось загрузить новый файл.");
+            }
+
+            var oldPhoto = await _context.Photos.FirstOrDefaultAsync(p => p.Name == name);
+
+            if (oldPhoto != null)
+            {
+                var filePath = Path.Combine(_storagePath, oldPhoto.Name);
+                if (File.Exists(filePath))
+                {
+                    File.Delete(filePath);
+                }
+
+                _context.Photos.Remove(oldPhoto);
+            }
+
             await _context.SaveChangesAsync();
-            return photo;
+            return newPhoto;
         }
 
         public List<Photo> ALlFromFolder()

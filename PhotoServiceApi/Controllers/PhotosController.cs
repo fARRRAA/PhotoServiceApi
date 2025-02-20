@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.StaticFiles;
 using PhotoServiceApi.Interfaces;
 using PhotoServiceApi.Models;
 
@@ -22,14 +23,29 @@ namespace PhotoServiceApi.Controllers
             var photos =  _photoService.GetPhotos();
             return Ok(photos);
         }
-        [Authorize]
+        //[Authorize]
+        private string GetMimeType(string fileName)
+        {
+            var provider = new FileExtensionContentTypeProvider();
+            if (provider.TryGetContentType(fileName, out var contentType))
+            {
+                return contentType;
+            }
+            return "application/octet-stream"; // Значение по умолчанию
+        }
 
         [HttpGet("photo/{name}")]
-        public async Task<IActionResult> getPhotoByName(string name)
+        public IActionResult GetPhotoByName(string name)
         {
-           Stream stream = _photoService.GetPhotoByName(name);
-            return File(stream, "image/png");
+            Stream stream = _photoService.GetPhotoByName(name);
 
+            if (stream == null)
+            {
+                return NotFound();
+            }
+
+            var mimeType = GetMimeType(name);
+            return File(stream, mimeType);
         }
         //[Authorize]
         [HttpPost("upload")]
@@ -53,8 +69,8 @@ namespace PhotoServiceApi.Controllers
         [HttpPut("update/{name}")]
         public async Task<IActionResult> UpdatePhoto(string name, IFormFile file)
         {
-            await _photoService.ReplacePhoto(name, file);
-            return Ok();
+            var photo = await _photoService.ReplacePhoto(name, file);
+            return Ok(photo);
         }
         //[Authorize(Roles = "admin")]
 
